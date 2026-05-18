@@ -1,0 +1,5 @@
+groq
+streamlit
+sentence-transformers
+faiss-cpu
+numpy
