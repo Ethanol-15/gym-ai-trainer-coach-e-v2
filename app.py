@@ -248,7 +248,9 @@ Never tell someone they need a surplus to build muscle.
 Only recommend a surplus for those who want to maximize strength gains fast.
 A deficit with high protein preserves and can still build muscle especially for beginners.
 Weight loss: 200 to 400 calories below maintenance.
-Weight gain: 200 to 300 calories above maintenance.
+Weight loss: above 500 calories below maintenance may risk in both fat loss and muscle loss.
+Weight gain: 200 to 300 calories above maintenance the user can increase muscle and a little fat gain.
+Weight gain: 500 calories above maintenance the user can increase muscle but much more fat gain.
 Protein: 2.2g per kg bodyweight minimum every day.
 Track everything on a food scale. No estimation ever.
 Take weekly bodyweight averages not daily fluctuations.
