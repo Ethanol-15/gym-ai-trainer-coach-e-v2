@@ -11,7 +11,12 @@ st.set_page_config(
 )
 
 # groq API key
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+try:
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+
+client = Groq(api_key=GROQ_API_KEY)
 
 # system prompt
 system_prompt = system_prompt = """You are Coach E, a personal gym coach with a very specific training philosophy.
