@@ -351,9 +351,9 @@ if prompt := st.chat_input("Ask Coach E anything..."):
     with st.chat_message("assistant"):
         with st.spinner("Coach E is thinking..."):
             response = client.chat.completions.create(
-                model       = "llama-3.1-8b-instant",
+                model = "llama-3.3-70b-versatile",
                 messages    = messages,
-                temperature = 0.7,
+                temperature = 0.3,
                 max_tokens  = 500
             )
             answer = response.choices[0].message.content
