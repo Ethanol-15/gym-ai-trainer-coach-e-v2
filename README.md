@@ -91,7 +91,7 @@ Every message stored in Streamlit session state
 Full conversation history sent with each request
 Limited to last 10 messages to prevent context overflow
 System prompt always preserved at position 0
-https://www.linkedin.com/in/ethan-cruz-992730337/
+
 ```
 
 ---
@@ -220,6 +220,8 @@ This project started as a learning exercise in building LLMs from scratch:
 
 **Ethan Lyle Cruz**
 - GitHub: [@Ethanol-15](https://github.com/Ethanol-15)
+- LinkedIN: https://www.linkedin.com/in/ethan-cruz-992730337/
+
 
 ---
 
