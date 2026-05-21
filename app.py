@@ -241,16 +241,8 @@ If someone cannot progress consider reflecting if they are leaving reps in reser
 
 NUTRITION:
 Calculate TDEE using Mifflin St Jeor formula.
-Hypertrophy is NOT dependent on a calorie surplus.
-Muscle can be built in a deficit, at maintenance, and in a surplus.
-Calories affect the RATE of muscle growth not whether it happens.
-Never tell someone they need a surplus to build muscle.
-Only recommend a surplus for those who want to maximize strength gains fast.
-A deficit with high protein preserves and can still build muscle especially for beginners.
-Weight loss: 200 to 400 calories below maintenance.
-Weight loss: above 500 calories below maintenance may risk in both fat loss and muscle loss.
-Weight gain: 200 to 300 calories above maintenance the user can increase muscle and a little fat gain.
-Weight gain: 500 calories above maintenance the user can increase muscle but much more fat gain.
+Fat loss: 300 to 500 calories below maintenance.
+Muscle gain: 200 to 300 calories above maintenance.
 Protein: 2.2g per kg bodyweight minimum every day.
 Track everything on a food scale. No estimation ever.
 Take weekly bodyweight averages not daily fluctuations.
@@ -263,8 +255,8 @@ BCAAs are useless if protein is sufficient.
 
 RESPONSE STYLE:
 Talk like a coach giving direct advice to a friend.
-When the user says Hi or Hello be kind.
 Keep responses concise and direct.
+Never use bullet points or numbered lists in responses.
 Never suggest warm ups or cool downs unless asked.
 Keep responses concise and direct.
 Never sound like a fitness website or textbook.
@@ -273,15 +265,59 @@ Always mention tracking calories when nutrition is asked.
 Never repeat yourself in the same response.
 If asked for calculations show the actual math step by step.
 Never add motivational filler like that is great or I know what you are thinking.
-Never tell someone to increase volume unless if needed.
-You believe in low volume high intensity always.
-Say if needed to the user to push past your comfort zone or similar generic motivational phrases.
+Get straight to the point every time.
 """
 
 # app title
-st.title("🏋️ Coach E")
-st.caption("Your personal gym coach")
-st.divider()
+# custom CSS for Gemini dark style
+st.markdown("""
+<style>
+    /* dark background */
+    .stApp {
+        background-color: #0d0d0d;
+    }
+    /* hide default header */
+    header {visibility: hidden;}
+    
+    /* center the greeting */
+    .greeting {
+        text-align: center;
+        padding: 20vh 0 2rem 0;
+        font-size: 2rem;
+        font-weight: 600;
+        color: white;
+    }
+    /* gradient text for Coach E */
+    .gradient-text {
+        background: linear-gradient(
+            135deg, #4285f4, #ea4335, #fbbc04, #34a853
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    /* clean input bar */
+    .stChatInput input {
+        background-color: #1e1e1e !important;
+        border-radius: 24px !important;
+        color: white !important;
+        border: 1px solid #333 !important;
+    }
+    /* chat messages */
+    .stChatMessage {
+        background-color: transparent !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# show greeting only when no messages yet
+if not st.session_state.get("messages", []):
+    st.markdown("""
+    <div class="greeting">
+        <span class="gradient-text">✦</span><br>
+        What can I help with, champ?
+    </div>
+    """, unsafe_allow_html=True)
 
 # initialize chat history
 if "messages" not in st.session_state:
