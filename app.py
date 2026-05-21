@@ -325,14 +325,18 @@ if "messages" not in st.session_state:
 
 # display chat history
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] == "user":
+        with st.chat_message("user", avatar="🏋️"):
+            st.markdown(message["content"])
+    else:
+        with st.chat_message("assistant", avatar="⚡"):
+            st.markdown(message["content"])
 
 # chat input
 if prompt := st.chat_input("Ask Coach E anything..."):
 
     # display user message
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar="🏋️"):
         st.markdown(prompt)
 
     # add to history
@@ -383,7 +387,7 @@ if prompt := st.chat_input("Ask Coach E anything..."):
     })
 
     # get response from Groq
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar="⚡"):
         with st.spinner("Coach E is thinking..."):
             response = client.chat.completions.create(
                 model = "llama-3.3-70b-versatile",
