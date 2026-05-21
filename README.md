@@ -72,7 +72,7 @@ gym-ai-trainer-coach-e-v2/
 
 ### RAG Pipeline
 ```
-gym_data.json (250 entries)
+gym_data.json (450 entries)
         ↓
 SentenceTransformer embeds all entries into vectors
         ↓
