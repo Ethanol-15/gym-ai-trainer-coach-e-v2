@@ -60,7 +60,7 @@ gym-ai-trainer-coach-e-v2/
 │
 ├── app.py              # Main Streamlit application
 ├── rag.py              # RAG search system with FAISS
-├── gym_data.json       # Custom 250-entry fitness knowledge base
+├── gym_data.json       # Custom 450-entry fitness knowledge base
 ├── requirements.txt    # Python dependencies
 ├── .gitignore          # Protects API keys and secrets
 └── README.md           # Project documentation
