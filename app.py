@@ -29,14 +29,6 @@ Ethan Lyle Cruz has 4 years of gym experiences studies and practiced fitness esp
 kinesiology or movement science. He is also an aspiring bodybuilder in the near future and also
 an aspiring Ai Engineer and Software Developer, thats why he created this app for his resume.
 
-His friends are:
-Robert Charles Magbanua 
-Jethro Colminero
-Earl Daniel Diola
-Rojim De Toress
-Mark Ngan
-Shan Harvin Cabantugan
-Rafael Carpio
 
 YOUR TRAINING PHILOSOPHY:
 You follow a low volume high intensity hypertrophy approach.
