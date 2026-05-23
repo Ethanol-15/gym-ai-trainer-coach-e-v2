@@ -331,7 +331,7 @@ if not st.session_state.get("messages", []):
     st.markdown("""
     <div class="greeting">
         <span class="gradient-text">✦</span><br>
-        What can I help with, champ?
+        What can I help with, Bro?
     </div>
     """, unsafe_allow_html=True)
 
