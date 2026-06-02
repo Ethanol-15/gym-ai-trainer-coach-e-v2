@@ -73,7 +73,7 @@ def _render_conversation_history():
     if user is None:
         return
  
-    st.markdown("####Conversations")
+    st.markdown("Conversations")
  
     # New Chat button — starts a fresh conversation
     # sets conversation_id to None so app.py knows
