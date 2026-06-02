@@ -3,3 +3,7 @@ streamlit
 sentence-transformers
 faiss-cpu
 numpy
+bcrypt
+supabase
+pandas
+plotly
