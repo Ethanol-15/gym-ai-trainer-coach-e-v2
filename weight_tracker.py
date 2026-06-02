@@ -27,10 +27,8 @@ def save_weight(user_id, log_date, weight):
 
 
 def load_weight_logs(user_id):
-    # ----------------------------------------
     # Loads all weight logs for the logged in user
     # Returns a pandas DataFrame for charting
-    # ----------------------------------------
     try:
         result = supabase.table("weight_logs")\
             .select("log_date, weight")\
