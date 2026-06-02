@@ -200,6 +200,12 @@ def _render_progress_tracker_menu():
         st.session_state["page"] = "strength_tracker"
         st.rerun()
 
+    # if user is logged in, calorie tracker will open
+    if st.button("Open Calorie Tracker", use_container_width=True):
+        # opens the strength tracker page
+        st.session_state["page"] = "calorie_tracker"
+        st.rerun()
+
 # footer 
 def _render_footer():
     st.markdown("#### About the Developer")
