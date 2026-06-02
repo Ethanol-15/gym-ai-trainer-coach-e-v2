@@ -11,10 +11,8 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def calculate_estimated_strength(exercise_type, weight, bodyweight, reps):
-    # ----------------------------------------
     # Epley formula: load * (1 + reps / 30)
     # estimates one rep max based on reps and load
-    # ----------------------------------------
     if exercise_type == "Gym Exercise":
         load = weight
     elif exercise_type == "Calisthenics":
@@ -58,10 +56,8 @@ def save_strength_log(
 
 
 def load_strength_logs(user_id):
-    # ----------------------------------------
     # Loads all strength logs for the logged in user
     # Returns a pandas DataFrame for display and charting
-    # ----------------------------------------
     try:
         result = supabase.table("strength_logs")\
             .select("log_date, exercise_name, exercise_type, sets, reps, weight, bodyweight, estimated_strength")\
