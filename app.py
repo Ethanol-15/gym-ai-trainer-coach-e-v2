@@ -9,6 +9,7 @@ from prompts import SYSTEM_PROMPT
 import time
 import weight_tracker
 import strength_tracker
+import calorie_tracker
 
 # page config
 st.set_page_config(
@@ -75,6 +76,20 @@ if current_page == "strength_tracker":
         # stop the chatbot page from rendering underneath
         st.stop()
 
+if current_page == "calorie_tracker":
+
+    # guest users are redirected back to chat
+    if not is_logged_in:
+        st.session_state["page"] = "chat"
+        st.warning("Please login or sign up to use the Strength Tracker.")
+        st.rerun()
+    # logged in users can access the weight tracker
+    else:
+        calorie_tracker.render_calorie_tracker()
+        # stop the chatbot page from rendering underneath
+        st.stop()
+
+
 # groq API key
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
@@ -84,7 +99,7 @@ except:
 client = Groq(api_key=GROQ_API_KEY)
 
 # MODEL SETTINGS
-DEV_MODE = False
+DEV_MODE = True
 MODEL = (
     "llama-3.1-8b-instant"
     if DEV_MODE
