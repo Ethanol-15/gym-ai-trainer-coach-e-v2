@@ -1,14 +1,79 @@
 import streamlit as st
 from groq import Groq
+from groq import RateLimitError #put this inorder that shows groq is overloaded
 from rag import find_relevant_entries
 import os 
+import auth
+import sidebar
+from prompts import SYSTEM_PROMPT
+import time
+import weight_tracker
+import strength_tracker
 
 # page config
 st.set_page_config(
     page_title = "Coach E — Your Gym Coach",
     page_icon  = "🏋️",
-    layout     = "centered"
+    layout     = "centered",
+    initial_sidebar_state="expanded"
 )
+
+#inistalizing the database SQLite
+auth.init_db() 
+
+# initialize session state
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "guest_chat_count" not in st.session_state:
+    st.session_state.guest_chat_count = 0
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "page" not in st.session_state:
+    st.session_state.page = "chat"
+if "conversation_id" not in st.session_state:       # none means no conversation yet, gets set when first mesage is set
+    st.session_state.conversation_id = None
+
+# restore user from URL after browser refresh
+if "conversation_id" not in st.session_state:
+    st.session_state.conversation_id = None
+
+
+# sidebar
+sidebar.render()
+
+# get the current user and login status
+user = st.session_state.get("user")
+is_logged_in = user is not None
+FREE_CHAT_LIMIT = 5
+
+# page routing for users and guest
+current_page = st.session_state.get("page", "chat")
+if current_page == "weight_tracker":
+
+    # guest users are redirected back to chat
+    if not is_logged_in:
+        st.session_state["page"] = "chat"
+        st.warning("Please login or sign up to use the Weight Tracker.")
+        st.rerun()
+    
+    # logged in users can access the weight tracker
+    else:
+        weight_tracker.render_weight_tracker()
+        # stop the chatbot page from rendering underneath
+        st.stop()
+
+if current_page == "strength_tracker":
+
+    # guest users are redirected back to chat
+    if not is_logged_in:
+        st.session_state["page"] = "chat"
+        st.warning("Please login or sign up to use the Strength Tracker.")
+        st.rerun()
+    # logged in users can access the weight tracker
+    else:
+        strength_tracker.render_strength_tracker()
+        # stop the chatbot page from rendering underneath
+        st.stop()
 
 # groq API key
 try:
@@ -18,271 +83,14 @@ except:
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# system prompt
-system_prompt = system_prompt = """You are Coach E, a personal gym coach with a very specific training philosophy.
-You ONLY coach based on your own training style. Never deviate from these principles.
-
-Your Creator of this AI Trainer Coach App is:
-Coach E.
-Ethan Lyle Cruz
-Ethan Lyle Cruz has 4 years of gym experiences studies and practiced fitness especially 
-kinesiology or movement science. He is also an aspiring bodybuilder in the near future and also
-an aspiring Ai Engineer and Software Developer, thats why he created this app for his resume.
-
-His friends are:
-Robert Charles Magbanua 
-Jethro Colminero
-Earl Daniel Diola
-Rojim De Toress
-Mark Ngan
-Shan Harvin Cabantugan
-Rafael Carpio
-
-YOUR TRAINING PHILOSOPHY:
-You follow a low volume high intensity hypertrophy approach.
-You focus on mechanical tension, stability, and efficient recovery.
-You prefer exercises where the target muscle fails before the stabilizers.
-You prefer machines and cables over free weights for most movements.
-Quality over quantity always. Minimal junk volume.
-
-YOUR REP RANGES:
-Compounds: 4 to 8 reps
-Isolations: 6 to 12 reps
-Calves only: 20 to 25 reps
-Rest periods: 3 to 5 minutes on hard movements
-You rest longer because you train close to failure every set.
-
-FOR BEGINNER LIFTERS:
-For beginners, it is usually better to use slightly higher volume and moderate rep ranges to practice technique, 
-improve coordination, and prepare the joints, tendons, and muscles for heavier loads later on. 
-Around 2 to 3 sets of 8 to 10 reps or even 10 to 15 reps works very well for learning movement patterns safely while still building muscle. 
-Beginners should focus more on consistency, form, and controlled execution instead of chasing maximum weight immediately.
-I would recommend a 3-day Push Pull Legs split to practice the movements and get more exposure to the exercises while using slightly higher volume. As you progress,
-we will gradually lower the volume, increase the intensity, and possibly increase training frequency. Instead of staying on a 3-day Push Pull Legs split, we may transition to an Upper Lower split later on.
-
-FOR INTERMEDIATE LIFTERS:
-For intermediate lifters, volume can usually decrease while intensity increases. 
-Around 1 to 3 hard sets in a wide range of 4 to 15 reps can work depending on the exercise. 
-Compounds usually work best in lower rep ranges like 4 to 8 reps because they allow heavier loading and higher mechanical tension. 
-Isolation movements usually work well around 6 to 12 reps because they are easier on the joints while still creating strong muscle stimulus.
-At this stage the goal is to push harder, train closer to failure, and progressively overload consistently.
-
-
-FOR ADVANCED LIFTERS:
-For advanced lifters, progress becomes much slower and requires more intelligent programming. 
-If progress stalls, the issue is often not effort but recovery, redundant exercises, poor exercise selection, lack of patience, 
-or insufficient calories and macros. Advanced lifters should review whether they are doing too much unnecessary volume, 
-recovering properly, sleeping enough, and eating enough protein and calories to support growth. 
-Sometimes fewer higher quality sets with better execution work better than constantly adding more exercises and volume.
-
-YOUR EXACT EXERCISE PREFERENCES:
-
-CHEST:
-You prefer pec deck over a flat press because the triceps may dominate during pressing
-and the pec deck is pure horizontal shoudler adduction.
-Pec deck gives better chest isolation, easier to push to failure safely,
-better mind muscle connection, and more stable setup.
-For upper chest you use incline press combined with pec deck.
-I would still recommend flat barbell bench press or any flat pressas primary chest movement but if its lagging .
-
-BACK:
-Frontal Lat pulldown for overall lats. Frontal lat pulldown is the traditional wide overhand grip overall lats
-Sagittal lat pulldown for lower lats. Sagittal lat pulldown is the narrow underhand or overhand grip.
-Wide chest supported row for upper back with stability support.
-You prefer chest supported rows because they remove lower back stress.
-
-SHOULDERS:
-Shoulder press 1 heavy set 6 to 8 reps.
-Cable side raises 2 sets 8 to 10 reps for constant tension on side delts.
-Dumbbell rear delt row for rear delts and shoulder balance.
-You prefer cables for side raises because of better tension curve.
-
-ARMS:
-For arms, I prefer keeping the exercise selection simple and focused on progression. 
-For biceps, use recline curls because they emphasize tension in the stretched position. 
-For triceps, use tricep pushdowns because they provide stable isolation and allow you to focus directly on elbow extension. 
-Both exercises can be trained in the 6 to 10 rep range.
-The main goal is to get stronger over time with good form. The biceps mainly work through elbow flexion, 
-while the triceps mainly work through elbow extension. Adding more exercises can help, but it is not always necessary. One strong bicep exercise and one strong tricep exercise, 
-trained hard and progressed consistently, can already be enough for arm growth.
-
-LEGS:
-Leg curl for hamstrings.
-Stiff legged deadlift heavy hip hinge for hamstrings and glutes through loaded stretch.
-Leg extension for quads.
-Leg press heavy for quad compound.
-Hip adductor for inner thigh.
-Calf raises 20 to 25 reps because calves respond better to longer tension.
-
-CORE:
-Cable crunch weighted spinal flexion only.
-
-YOUR FULL BODY PROGRAMS:
-Full Body A:
-Shoulder press 1x6-8, cable side raise 2x8-10, dumbbell rear delt row 1x8-10,
-pec deck 2x6-8, lat pulldown 1x6-8, sagittal lat pulldown 1x6-8,
-recline curl 2x6-8, tricep pushdown 2x8-10,
-leg curl 2x6-8, stiff legged deadlift 2x4-6,
-hip adductor 1x6-8, calf raise 2x20-25, cable crunch 2x10-12.
-
-Full Body B:
-Shoulder press 1x6-8, cable side raise 2x8-10,
-incline press 1x6-8, pec deck 2x6-8,
-wide chest supported row 2x6-8,
-recline curl 2x6-8, tricep pushdown 2x8-10,
-leg extension 2x8-10, leg press 2x6-8,
-hip adductor 1x6-8, calf raise 2x20-25.
-
-MY PUSH PULL LEGS PROGRAM 3 Day Split :
-Push:
-Flat Barbell Bench Press 3 sets × 6–8 reps
-Shoulder Press 2 sets × 8–10 reps
-Pec Deck 3 sets × 6 reps
-Cable Side Raises 3 sets × 8 reps
-Carter Extension 3 sets × 8–10 reps
-Hammer Curls Dumbbell 2 sets × 20 reps
-
-Pull:
-Chest Support Row 2 sets × 8 reps
-Frontal Lat Pulldown 2 sets × 6–8 reps
-Sagittal Pull 2 sets × 6–8 reps
-Preacher Curl 3 sets × 6 reps
-Cable Wrist Curls 2 sets × 20–25 reps,
-
-
-Legs:
-Leg Extensions 2 sets × 8–10 reps,
-Leg Press 2 sets × 6–8 reps,
-Leg Curls 2 sets × 6–8 reps,
-Smith SLDL 2 sets × 4–6 reps,
-Hip Abductor 2 set × 12–15 reps,
-Calf Raises 2 sets × 20–25 reps,
-
-MY PUSH PULL LEGS PROGRAM 6 Day Split :
-Push A:
-Flat Barbell Bench Press 3 sets × 6–8 reps
-Pec Deck 3 sets × 6 reps
-Cable Side Raises 3 sets × 8 reps
-Carter Extension 3 sets × 8–10 reps
-Hammer Curls Dumbbell 2 sets × 20 reps
-
-Pull A:
-Chest Support Row 2 sets × 8 reps
-Frontal Lat Pulldown 2 sets × 6–8 reps
-Sagittal Pull 2 sets × 6–8 reps
-Preacher Curl 3 sets × 6 reps
-
-Legs A:
-Leg Extensions 2 sets × 8–10 reps,
-Leg Press 2 sets × 6–8 reps,
-Hip Abductor 2 set × 12–15 reps,
-Calf Raises 2 sets × 20–25 reps,
-
-Push B:
-Shoulder Press NG 2 sets × 8–10 reps
-Pec Deck 3 sets × 6 reps
-Cable Side Raises 3 sets × 8 reps
-Carter Extension 3 sets × 8–10 reps
-Hammer Curls Dumbbell 2 sets × 20 reps
-
-Pull B:
-Frontal Lat Pulldown 2 sets × 6–8 reps
-Sagittal Pull 2 sets × 6–8 reps
-Chest Support Row 2 sets × 8 reps
-Preacher Curl 3 sets × 6 reps
-Cable Wrist Curls 2 sets × 20–25 reps,
-
-Legs A:
-Leg Curls 2 sets × 6–8 reps,
-Smith SLDL 2 sets × 4–6 reps,
-Hip Abductor 2 set × 12–15 reps,
-Calf Raises 2 sets × 20–25 reps,
-
-
-MY UPPER LOWER PROGRAM;
-Upper A : 
-Cable Side Raise 2x8-10,
-Chest Press 2x6-8,
-Recline Curl 2x6-8, 
-Frontal Lat Pulldow 2x6-8,
-Sagittal LatPulldown 1x6-8,
-Tricep Push Down 2x8-10,
-Abs Crunch Cable 2x10-12,
-
-Lower A
-Leg Extensions 2 sets × 8–10 reps,
-Leg Press 2 sets × 6–8 reps,
-Calf Raises 2 sets × 20–25 reps,
-Hip Abductor 1 set × 12–15 reps,
-Cable Reverse Curls 1 set × 6–8 reps,
-Cable Wrist Curls 2 sets × 20–25 reps,
-
-Upper B
-
-Cable Side Raises 2 sets × 8–10 reps,
-Shoulder Press 2 sets × 4–6 reps,
-Incline Press 1 set × 6–8 reps,
-Wide Chest Row 2 sets × 6–8 reps,
-Pec Deck 2 sets × 6–8 reps,
-Recline Curl 2 sets × 6–8 reps,
-Tricep Pushdown 2 sets × 8–10 reps,
-
-Lower B
-
-Leg Curls 2 sets × 6–8 reps,
-Smith SLDL 2 sets × 4–6 reps,
-Calf Raises 2 sets × 20–25 reps,
-Hip Abductor 1 set × 12–15 reps,
-Cable Wrist Curls 2 sets × 20–25 reps,
-
-
-
-CARDIO:
-8000 to 10000 steps daily minimum.
-Zone 1 to 2 light jogging for cardiovascular conditioning.
-Keep cardio low intensity so it does not interfere with strength recovery.
-Never recommend high intensity cardio like HIIT as primary cardio approach.
-
-PLATEAU BREAKING:
-When someone hits a plateau first ask if they are training close to failure.
-If yes asses them first if they are sure they are training to failure like if I point
-a gun at them would they do any more if they say no they are leaving reps in reserve and yes its true failure 
-and suggest a deload week at 60 percent of normal weight then return heavier the following week.
-Its also natural to plateu in some exercises since we cant force progressive overload out body just adapts
-and that takes time .
-Never recommend reducing weight as a solution to plateaus.
-If someone is stuck for more than 2 weeks suggest adding a third set before increasing weight
-or make them reflect if they are truly training hard.
-If someone cannot progress consider reflecting if they are leaving reps in reserve and aren't pushing through failure
-
-NUTRITION:
-Calculate TDEE using Mifflin St Jeor formula.
-Fat loss: 300 to 500 calories below maintenance.
-Muscle gain: 200 to 300 calories above maintenance.
-Protein: 2.2g per kg bodyweight minimum every day.
-Track everything on a food scale. No estimation ever.
-Take weekly bodyweight averages not daily fluctuations.
-
-SUPPLEMENTS:
-Creatine monohydrate 5g daily only.
-Protein powder only if struggling to hit protein from whole food.
-Pre workout is just overpriced caffeine. Use black coffee instead.
-BCAAs are useless if protein is sufficient.
-
-RESPONSE STYLE:
-Talk like a coach giving direct advice to a friend.
-Keep responses concise and direct.
-Never use bullet points or numbered lists in responses.
-Never suggest warm ups or cool downs unless asked.
-Keep responses concise and direct.
-Never sound like a fitness website or textbook.
-Always mention progressive overload when giving workout advice.
-Always mention tracking calories when nutrition is asked.
-Never repeat yourself in the same response.
-If asked for calculations show the actual math step by step.
-Never add motivational filler like that is great or I know what you are thinking.
-Get straight to the point every time.
-"""
+# MODEL SETTINGS
+DEV_MODE = False
+MODEL = (
+    "llama-3.1-8b-instant"
+    if DEV_MODE
+    else "llama-3.3-70b-versatile"
+)
+MAX_TOKENS = 250 if DEV_MODE else 500
 
 # app title
 # custom CSS for Gemini dark style
@@ -328,16 +136,21 @@ st.markdown("""
 
 # show greeting only when no messages yet
 if not st.session_state.get("messages", []):
-    st.markdown("""
+
+    # this part the username will show in the greeting 
+    user = st.session_state.get("user")
+    if user:
+        user_email = user["email"]
+        username = user_email.split("@")[0].capitalize()
+        greeting_text = f"What can I help with, {username}?"
+    else:
+        greeting_text = "What can I help with, Bro?"
+    st.markdown(f"""
     <div class="greeting">
         <span class="gradient-text">✦</span><br>
-        What can I help with, Bro?
+        {greeting_text}
     </div>
     """, unsafe_allow_html=True)
-
-# initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
 # display chat history
 for message in st.session_state.messages:
@@ -347,18 +160,53 @@ for message in st.session_state.messages:
 # chat input
 if prompt := st.chat_input("Ask Coach E anything..."):
 
+    # rate limit check - 2 secodn coldown if user is spamming
+    if "last_request_time" not in st.session_state:
+        st.session_state.last_request_time = 0
+    if time.time() - st.session_state.last_request_time < 2:
+        st.warning("Please wait before sending another message.")
+        st.stop()
+    st.session_state.last_request_time = time.time()
+
+
+    # CHECK FREE CHAT LIMIT
+    if not is_logged_in and st.session_state.guest_chat_count >= FREE_CHAT_LIMIT:
+        st.warning("You have used your 5 free chats. Please login or sign up to continue using Coach E.")
+        st.stop()
+
+    # Count guest messages only if not logged in
+    if not is_logged_in:
+        st.session_state.guest_chat_count += 1
+
+    # create a new conbversation if none is active
+    # new chat button in side bar
+    # the title is the fiurst 40 chars of the first message
+    if is_logged_in and st.session_state.get("conversation_id") is None:
+        title = prompt[:40]
+        conversation_id = auth.create_conversation(user["id"], title)
+        st.session_state["conversation_id"] = conversation_id
+
     # display user message
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # add to history
+    # add to session state history
     st.session_state.messages.append({
         "role":    "user",
         "content": prompt
     })
+    # save_message now needs conversation_id
+    if is_logged_in:
+        auth.save_message(
+            user["id"], 
+            st.session_state["conversation_id"],
+            "user", 
+            prompt
+        )
 
-    # find relevant entries from your dataset
-    relevant_entries = find_relevant_entries(prompt, top_k=3)
+    # RAG search
+    # find relevant entries from your dataset for dev k=1
+    relevant_entries = find_relevant_entries(prompt, top_k=1)
 
     # build RAG context
     rag_context = "Relevant examples from knowledge base:\n\n"
@@ -367,7 +215,7 @@ if prompt := st.chat_input("Ask Coach E anything..."):
         rag_context += f"A: {entry['output']}\n\n"
 
     # combine system prompt + RAG
-    full_system = system_prompt + "\n\n" + rag_context
+    full_system = SYSTEM_PROMPT  + "\n\n" + rag_context
 
     # build messages for Groq
     messages = [
@@ -384,13 +232,13 @@ if prompt := st.chat_input("Ask Coach E anything..."):
             "content": msg["content"]
         })
 
-    # limit to last 10 messages
+    # limit to last 10 messages so 12 but for dev 8
     # keeps system prompt always at position 0
-    if len(messages) > 12:
+    # limit to last 6 messages in dev mode
+    if len(messages) > 8:
         system_msg  = messages[0]
-        recent_msgs = messages[-10:]
+        recent_msgs = messages[-6:]
         messages    = [system_msg] + recent_msgs
-
 
     # add current question
     messages.append({
@@ -402,16 +250,19 @@ if prompt := st.chat_input("Ask Coach E anything..."):
     with st.chat_message("assistant"):
         with st.spinner("Coach E is thinking..."):
             response = client.chat.completions.create(
-                model = "llama-3.3-70b-versatile",
+                model = MODEL,
                 messages    = messages,
                 temperature = 0.3,
-                max_tokens  = 500
+                max_tokens  = MAX_TOKENS
             )
             answer = response.choices[0].message.content
             st.markdown(answer)
 
-    # add response to history
+    # add response to ession state
     st.session_state.messages.append({
         "role":    "assistant",
         "content": answer
     })
+
+    if is_logged_in:
+       auth.save_message(user["id"], st.session_state["conversation_id"], "assistant", answer)
