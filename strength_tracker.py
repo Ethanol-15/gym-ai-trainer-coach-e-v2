@@ -11,8 +11,6 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def calculate_estimated_strength(exercise_type, weight, bodyweight, reps):
-    # Epley formula: load * (1 + reps / 30)
-    # estimates one rep max based on reps and load
     if exercise_type == "Gym Exercise":
         load = weight
     elif exercise_type == "Calisthenics":
@@ -21,25 +19,34 @@ def calculate_estimated_strength(exercise_type, weight, bodyweight, reps):
         load = bodyweight + weight
     else:
         load = 0
-
     return load * (1 + reps / 30)
 
 
 def save_strength_log(
-    user_id,
-    log_date,
-    exercise_name,
-    exercise_type,
-    sets,
-    reps,
-    weight,
-    bodyweight,
-    estimated_strength
+    user_id, log_date, exercise_name, exercise_type,
+    sets, reps, weight, bodyweight, estimated_strength
 ):
-    # Saves one strength log entry to Supabase
-    # uses user_id instead of user_email
-
     try:
+        # Check if an identical entry already exists
+        existing = supabase.table("strength_logs")\
+            .select("exercise_name, exercise_type, sets, reps, weight, bodyweight")\
+            .eq("user_id", user_id)\
+            .eq("log_date", str(log_date))\
+            .eq("exercise_name", exercise_name)\
+            .execute()
+
+        if existing.data:
+            for entry in existing.data:
+                if (
+                    entry["exercise_type"] == exercise_type and
+                    entry["sets"] == sets and
+                    entry["reps"] == reps and
+                    entry["weight"] == weight and
+                    entry["bodyweight"] == bodyweight
+                ):
+                    st.warning("⚠️ An identical log already exists for this exercise on this date. No changes made.")
+                    return
+
         supabase.table("strength_logs").insert({
             "user_id": user_id,
             "log_date": str(log_date),
@@ -51,13 +58,12 @@ def save_strength_log(
             "bodyweight": bodyweight,
             "estimated_strength": estimated_strength
         }).execute()
+
     except Exception as e:
         st.error(f"Error saving strength log: {e}")
 
 
 def load_strength_logs(user_id):
-    # Loads all strength logs for the logged in user
-    # Returns a pandas DataFrame for display and charting
     try:
         result = supabase.table("strength_logs")\
             .select("log_date, exercise_name, exercise_type, sets, reps, weight, bodyweight, estimated_strength")\
@@ -79,23 +85,26 @@ def load_strength_logs(user_id):
 
 def render_strength_tracker():
 
-    # back button
     if st.button("⬅ Back to Coach E"):
         st.session_state["page"] = "chat"
         st.rerun()
 
-    # get logged in user
     user = st.session_state.get("user")
 
     st.markdown("## Strength Tracker")
 
-    # block guest users
     if not user:
         st.warning("Please login to use the strength tracker.")
         return
 
-    # use user_id now instead of user_email
     user_id = user["id"]
+
+    # --- CAREFUL NOTICE ---
+    st.info(
+        "⚠️ **Be careful when logging your exercises.** "
+        "Strength logs are not fully editable — each entry is saved as a separate record. "
+        "Double-check your exercise name, sets, reps, and weight before saving."
+    )
 
     # exercise type selector — outside form so placeholder updates live
     exercise_type = st.selectbox(
@@ -122,7 +131,6 @@ def render_strength_tracker():
         sets = st.number_input("Sets", min_value=1, max_value=20, step=1)
         reps = st.number_input("Reps", min_value=1, max_value=100, step=1)
 
-        # default values
         weight = 0.0
         bodyweight = 0.0
 
