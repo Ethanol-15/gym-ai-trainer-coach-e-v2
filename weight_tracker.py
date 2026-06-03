@@ -17,11 +17,23 @@ def save_weight(user_id, log_date, weight):
     # same as INSERT OR REPLACE in SQLite
     # uses user_id now instead of user_email
     try:
+        # Check if an identical entry already exists
+        existing = supabase.table("weight_logs")\
+            .select("weight")\
+            .eq("user_id", user_id)\
+            .eq("log_date", str(log_date))\
+            .execute()
+
+        if existing.data and existing.data[0]["weight"] == weight:
+            st.warning("⚠️ This exact entry already exists for this date. No changes made.")
+            return
+
         supabase.table("weight_logs").upsert({
             "user_id": user_id,
             "log_date": str(log_date),
             "weight": weight
         }).execute()
+
     except Exception as e:
         st.error(f"Error saving weight: {e}")
 
