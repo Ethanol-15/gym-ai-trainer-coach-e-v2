@@ -5,19 +5,13 @@ import plotly.express as px
 from supabase import create_client
 
 # connect to supabase
-# reads from .streamlit/secrets.toml
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def save_weight(user_id, log_date, weight):
-    # Saves or updates a weight entry
-    # upsert = insert if not exists, update if exists
-    # same as INSERT OR REPLACE in SQLite
-    # uses user_id now instead of user_email
     try:
-        # Check if an identical entry already exists
         existing = supabase.table("weight_logs")\
             .select("weight")\
             .eq("user_id", user_id)\
@@ -38,9 +32,19 @@ def save_weight(user_id, log_date, weight):
         st.error(f"Error saving weight: {e}")
 
 
+def update_weight(user_id, log_date, new_weight):
+    # Updates an existing weight log entry by date
+    try:
+        supabase.table("weight_logs")\
+            .update({"weight": new_weight})\
+            .eq("user_id", user_id)\
+            .eq("log_date", str(log_date))\
+            .execute()
+    except Exception as e:
+        st.error(f"Error updating weight: {e}")
+
+
 def load_weight_logs(user_id):
-    # Loads all weight logs for the logged in user
-    # Returns a pandas DataFrame for charting
     try:
         result = supabase.table("weight_logs")\
             .select("log_date, weight")\
@@ -62,25 +66,28 @@ def load_weight_logs(user_id):
 
 def render_weight_tracker():
 
-    # back button to return to chatbot
     if st.button("⬅ Back to Coach Chat"):
         st.session_state["page"] = "chat"
         st.rerun()
 
-    # get logged in user
     user = st.session_state.get("user")
 
     st.markdown("## Weight Tracker")
 
-    # block guest users
     if not user:
         st.warning("Please login to use the weight tracker.")
         return
 
-    # use user_id now instead of user_email
     user_id = user["id"]
 
-    # weight input form
+    # --- CAREFUL NOTICE ---
+    st.info(
+        "⚠️ **Be careful when logging your weight.** "
+        "Logs are not fully editable — you can only correct an existing date's entry. "
+        "Double-check your date and weight before saving."
+    )
+
+    # --- LOG FORM ---
     with st.form("weight_form"):
         log_date = st.date_input("Date", value=date.today())
         weight = st.number_input(
@@ -95,14 +102,43 @@ def render_weight_tracker():
             save_weight(user_id, log_date, weight)
             st.success("Weight saved!")
 
-    # load and display logs
+    # --- LOAD LOGS ---
     df = load_weight_logs(user_id)
 
     if df.empty:
         st.info("No weight logs yet. Add your first entry.")
         return
 
-    # progress chart
+    # --- EDIT SECTION ---
+    st.markdown("### Edit a Log Entry")
+    st.caption("Made a mistake? Select the date of the entry you want to correct.")
+
+    edit_dates = df["log_date"].dt.date.tolist()
+    selected_edit_date = st.selectbox("Select date to edit", edit_dates)
+
+    existing_row = df[df["log_date"].dt.date == selected_edit_date]
+    existing_weight = float(existing_row["weight"].values[0]) if not existing_row.empty else 0.0
+
+    with st.form("edit_weight_form"):
+        st.markdown(f"**Current weight on {selected_edit_date}:** {existing_weight} kg")
+        new_weight = st.number_input(
+            "New Weight (kg)",
+            min_value=20.0,
+            max_value=300.0,
+            step=0.1,
+            value=existing_weight
+        )
+        edit_submitted = st.form_submit_button("Update Entry")
+
+        if edit_submitted:
+            if new_weight == existing_weight:
+                st.warning("⚠️ New weight is the same as the existing entry. No changes made.")
+            else:
+                update_weight(user_id, selected_edit_date, new_weight)
+                st.success(f"Entry for {selected_edit_date} updated to {new_weight} kg!")
+                st.rerun()
+
+    # --- PROGRESS CHART ---
     st.markdown("### Progress Chart")
 
     min_weight = df["weight"].min()
@@ -130,7 +166,7 @@ def render_weight_tracker():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # analytics
+    # --- ANALYTICS ---
     start_weight = df["weight"].iloc[0]
     current_weight = df["weight"].iloc[-1]
     total_change = current_weight - start_weight
