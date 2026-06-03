@@ -4,67 +4,120 @@ from datetime import date
 import plotly.express as px
 from supabase import create_client
 
-# connect to supabase
+# SUPABASE CONNECTION
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def save_weight(user_id, log_date, weight):
+# SAVE CALORIE GOALS
+def save_calorie_goal(user_id, calorie_goal, protein_goal, carbs_goal, fats_goal):
     try:
-        existing = supabase.table("weight_logs")\
-            .select("weight")\
+        existing = supabase.table("calorie_goals")\
+            .select("calorie_goal, protein_goal, carbs_goal, fats_goal")\
             .eq("user_id", user_id)\
-            .eq("log_date", str(log_date))\
+            .order("created_at", desc=True)\
+            .limit(1)\
             .execute()
 
-        if existing.data and existing.data[0]["weight"] == weight:
-            st.warning("⚠️ This exact entry already exists for this date. No changes made.")
-            return
+        if existing.data:
+            latest = existing.data[0]
+            if (
+                latest["calorie_goal"] == calorie_goal and
+                latest["protein_goal"] == protein_goal and
+                latest["carbs_goal"] == carbs_goal and
+                latest["fats_goal"] == fats_goal
+            ):
+                st.warning("⚠️ These goals are identical to your current settings. No changes made.")
+                return
 
-        supabase.table("weight_logs").upsert({
+        supabase.table("calorie_goals").insert({
             "user_id": user_id,
-            "log_date": str(log_date),
-            "weight": weight
+            "calorie_goal": calorie_goal,
+            "protein_goal": protein_goal,
+            "carbs_goal": carbs_goal,
+            "fats_goal": fats_goal
         }).execute()
 
     except Exception as e:
-        st.error(f"Error saving weight: {e}")
+        st.error(f"Error saving calorie goal: {e}")
 
 
-def update_weight(user_id, log_date, new_weight):
-    # Updates an existing weight log entry by date
+# LOAD LATEST CALORIE GOAL
+def load_latest_calorie_goal(user_id):
     try:
-        supabase.table("weight_logs")\
-            .update({"weight": new_weight})\
+        result = supabase.table("calorie_goals")\
+            .select("calorie_goal, protein_goal, carbs_goal, fats_goal")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)\
+            .limit(1)\
+            .execute()
+        if not result.data:
+            return None
+        return result.data[0]
+    except Exception as e:
+        st.error(f"Error loading calorie goal: {e}")
+        return None
+
+
+# SAVE DAILY CALORIE LOG
+def save_calorie_log(user_id, log_date, calories, protein, carbs, fats):
+    try:
+        # Check if an identical entry already exists for this date
+        existing = supabase.table("calorie_logs")\
+            .select("calories, protein, carbs, fats")\
             .eq("user_id", user_id)\
             .eq("log_date", str(log_date))\
             .execute()
+
+        if existing.data:
+            for entry in existing.data:
+                if (
+                    entry["calories"] == calories and
+                    entry["protein"] == protein and
+                    entry["carbs"] == carbs and
+                    entry["fats"] == fats
+                ):
+                    st.warning("⚠️ An identical log already exists for this date. No changes made.")
+                    return
+
+        supabase.table("calorie_logs").insert({
+            "user_id": user_id,
+            "log_date": str(log_date),
+            "calories": calories,
+            "protein": protein,
+            "carbs": carbs,
+            "fats": fats
+        }).execute()
+
     except Exception as e:
-        st.error(f"Error updating weight: {e}")
+        st.error(f"Error saving calorie log: {e}")
 
 
-def load_weight_logs(user_id):
+# LOAD CALORIE LOGS
+def load_calorie_logs(user_id):
     try:
-        result = supabase.table("weight_logs")\
-            .select("log_date, weight")\
+        result = supabase.table("calorie_logs")\
+            .select("log_date, calories, protein, carbs, fats")\
             .eq("user_id", user_id)\
             .order("log_date", desc=False)\
             .execute()
-
         if not result.data:
-            return pd.DataFrame(columns=["log_date", "weight"])
-
+            return pd.DataFrame(columns=[
+                "log_date", "calories", "protein", "carbs", "fats"
+            ])
         df = pd.DataFrame(result.data)
         df["log_date"] = pd.to_datetime(df["log_date"])
         return df
-
     except Exception as e:
-        st.error(f"Error loading weight logs: {e}")
-        return pd.DataFrame(columns=["log_date", "weight"])
+        st.error(f"Error loading calorie logs: {e}")
+        return pd.DataFrame(columns=[
+            "log_date", "calories", "protein", "carbs", "fats"
+        ])
 
 
-def render_weight_tracker():
+# MAIN CALORIE TRACKER PAGE
+def render_calorie_tracker():
 
     if st.button("⬅ Back to Coach Chat"):
         st.session_state["page"] = "chat"
@@ -72,135 +125,157 @@ def render_weight_tracker():
 
     user = st.session_state.get("user")
 
-    st.markdown("## Weight Tracker")
+    st.markdown("## Calorie Tracker")
 
     if not user:
-        st.warning("Please login to use the weight tracker.")
+        st.warning("Please login to use the Calorie Tracker.")
         return
 
     user_id = user["id"]
 
     # --- CAREFUL NOTICE ---
     st.info(
-        "⚠️ **Be careful when logging your weight.** "
-        "Logs are not fully editable — you can only correct an existing date's entry. "
-        "Double-check your date and weight before saving."
+        "⚠️ **Be careful when logging your intake.** "
+        "Calorie logs are not fully editable — each entry is saved as a separate record. "
+        "Double-check your values before saving to avoid duplicate or incorrect entries."
     )
 
-    # --- LOG FORM ---
-    with st.form("weight_form"):
-        log_date = st.date_input("Date", value=date.today())
-        weight = st.number_input(
-            "Weight (kg)",
-            min_value=20.0,
-            max_value=300.0,
-            step=0.1
+    # GOAL SETTING FORM
+    st.markdown("### Set Your Calorie & Macro Goals")
+    with st.form("calorie_goal_form"):
+        calorie_goal = st.number_input(
+            "Daily Calorie Goal",
+            min_value=1000,
+            max_value=10000,
+            step=50
         )
-        submitted = st.form_submit_button("Save Weight")
+        protein_goal = st.number_input(
+            "Protein Goal (g)",
+            min_value=0.0,
+            max_value=500.0,
+            step=1.0
+        )
+        carbs_goal = st.number_input(
+            "Carbs Goal (g)",
+            min_value=0.0,
+            max_value=1000.0,
+            step=1.0
+        )
+        fats_goal = st.number_input(
+            "Fats Goal (g)",
+            min_value=0.0,
+            max_value=300.0,
+            step=1.0
+        )
+        goal_submitted = st.form_submit_button("Save Goals")
 
-        if submitted:
-            save_weight(user_id, log_date, weight)
-            st.success("Weight saved!")
+        if goal_submitted:
+            save_calorie_goal(
+                user_id, calorie_goal, protein_goal, carbs_goal, fats_goal
+            )
+            st.success("Calorie goals saved!")
 
-    # --- LOAD LOGS ---
-    df = load_weight_logs(user_id)
+    goal = load_latest_calorie_goal(user_id)
+    if goal:
+        st.info(
+            f"Current Goal: {goal['calorie_goal']} kcal | "
+            f"Protein: {goal['protein_goal']}g | "
+            f"Carbs: {goal['carbs_goal']}g | "
+            f"Fats: {goal['fats_goal']}g"
+        )
+    else:
+        st.warning("Set your calorie goal first before tracking intake.")
 
+    # DAILY LOGGING FORM
+    st.markdown("### Log Today's Intake")
+    with st.form("calorie_log_form"):
+        log_date = st.date_input("Date", value=date.today())
+        calories = st.number_input(
+            "Calories Eaten",
+            min_value=0,
+            max_value=10000,
+            step=50
+        )
+        protein = st.number_input(
+            "Protein Eaten (g)",
+            min_value=0.0,
+            max_value=500.0,
+            step=1.0
+        )
+        carbs = st.number_input(
+            "Carbs Eaten (g)",
+            min_value=0.0,
+            max_value=1000.0,
+            step=1.0
+        )
+        fats = st.number_input(
+            "Fats Eaten (g)",
+            min_value=0.0,
+            max_value=300.0,
+            step=1.0
+        )
+
+        log_submitted = st.form_submit_button("Save Intake")
+
+        if log_submitted:
+            save_calorie_log(user_id, log_date, calories, protein, carbs, fats)
+            st.success("Calorie intake saved!")
+
+    # LOAD AND DISPLAY LOGS
+    df = load_calorie_logs(user_id)
     if df.empty:
-        st.info("No weight logs yet. Add your first entry.")
+        st.info("No calorie logs yet. Add your first intake.")
         return
 
-    # --- EDIT SECTION ---
-    st.markdown("### Edit a Log Entry")
-    st.caption("Made a mistake? Select the date of the entry you want to correct.")
+    st.markdown("### Calorie Logs")
+    st.dataframe(df, use_container_width=True)
 
-    edit_dates = df["log_date"].dt.date.tolist()
-    selected_edit_date = st.selectbox("Select date to edit", edit_dates)
+    # TODAY'S REMAINING MACROS
+    if goal:
+        today_logs = df[df["log_date"].dt.date == date.today()]
+        today_calories = today_logs["calories"].sum()
+        today_protein = today_logs["protein"].sum()
+        today_carbs = today_logs["carbs"].sum()
+        today_fats = today_logs["fats"].sum()
+        remaining_calories = goal["calorie_goal"] - today_calories
+        remaining_protein = goal["protein_goal"] - today_protein
+        remaining_carbs = goal["carbs_goal"] - today_carbs
+        remaining_fats = goal["fats_goal"] - today_fats
 
-    existing_row = df[df["log_date"].dt.date == selected_edit_date]
-    existing_weight = float(existing_row["weight"].values[0]) if not existing_row.empty else 0.0
+        st.markdown("### Today's Remaining Intake")
+        col1, col2 = st.columns(2)
+        col3, col4 = st.columns(2)
+        col1.metric("Calories Left", f"{remaining_calories:.0f} kcal")
+        col2.metric("Protein Left", f"{remaining_protein:.1f} g")
+        col3.metric("Carbs Left", f"{remaining_carbs:.1f} g")
+        col4.metric("Fats Left", f"{remaining_fats:.1f} g")
 
-    with st.form("edit_weight_form"):
-        st.markdown(f"**Current weight on {selected_edit_date}:** {existing_weight} kg")
-        new_weight = st.number_input(
-            "New Weight (kg)",
-            min_value=20.0,
-            max_value=300.0,
-            step=0.1,
-            value=existing_weight
-        )
-        edit_submitted = st.form_submit_button("Update Entry")
-
-        if edit_submitted:
-            if new_weight == existing_weight:
-                st.warning("⚠️ New weight is the same as the existing entry. No changes made.")
-            else:
-                update_weight(user_id, selected_edit_date, new_weight)
-                st.success(f"Entry for {selected_edit_date} updated to {new_weight} kg!")
-                st.rerun()
-
-    # --- PROGRESS CHART ---
-    st.markdown("### Progress Chart")
-
-    min_weight = df["weight"].min()
-    max_weight = df["weight"].max()
-
-    if min_weight == max_weight:
-        y_min = min_weight - 5
-        y_max = max_weight + 5
-    else:
-        y_min = min_weight - 2
-        y_max = max_weight + 2
-
+    # PROGRESS CHART
+    st.markdown("### Calorie Progress Chart")
     fig = px.line(
         df,
         x="log_date",
-        y="weight",
+        y="calories",
         markers=True,
-        title="Weight Progress"
+        title="Calories Over Time"
     )
     fig.update_layout(
         height=400,
         margin=dict(l=70, r=30, t=60, b=60),
-        yaxis=dict(title="Weight (kg)", range=[y_min, y_max]),
+        yaxis=dict(title="Calories"),
         xaxis=dict(title="Date")
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- ANALYTICS ---
-    start_weight = df["weight"].iloc[0]
-    current_weight = df["weight"].iloc[-1]
-    total_change = current_weight - start_weight
-    highest_weight = df["weight"].max()
-    lowest_weight = df["weight"].min()
-
+    # ANALYTICS
     st.markdown("### Analytics")
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Start Weight", f"{start_weight:.1f} kg")
-    col2.metric("Current Weight", f"{current_weight:.1f} kg")
-    col3.metric("Total Change", f"{total_change:+.1f} kg")
-
-    col4, col5 = st.columns(2)
-    col4.metric("Highest Weight", f"{highest_weight:.1f} kg")
-    col5.metric("Lowest Weight", f"{lowest_weight:.1f} kg")
-
-    if len(df) >= 2:
-        df["daily_change"] = df["weight"].diff()
-        avg_change = df["daily_change"].mean()
-
-        if avg_change <= -0.30:
-            trend = "Extreme Weight Loss ⚠️"
-        elif avg_change <= -0.15:
-            trend = "Fast Weight Loss"
-        elif avg_change <= -0.05:
-            trend = "Mild Weight Loss"
-        elif -0.05 < avg_change < 0.05:
-            trend = "Maintaining Weight"
-        elif 0.05 <= avg_change < 0.15:
-            trend = "Mild Weight Gain"
-        elif 0.15 <= avg_change < 0.30:
-            trend = "Fast Weight Gain"
-        else:
-            trend = "Extreme Weight Gain ⚠️"
-
-        st.metric("Trend", trend)
+    avg_calories = df["calories"].mean()
+    avg_protein = df["protein"].mean()
+    avg_carbs = df["carbs"].mean()
+    avg_fats = df["fats"].mean()
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
+    col1.metric("Avg Calories", f"{avg_calories:.0f} kcal")
+    col2.metric("Avg Protein", f"{avg_protein:.1f} g")
+    col3.metric("Avg Carbs", f"{avg_carbs:.1f} g")
+    col4.metric("Avg Fats", f"{avg_fats:.1f} g")
