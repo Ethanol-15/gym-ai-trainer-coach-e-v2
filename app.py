@@ -99,7 +99,7 @@ except:
 client = Groq(api_key=GROQ_API_KEY)
 
 # MODEL SETTINGS
-DEV_MODE = True
+DEV_MODE = TRUE
 MODEL = (
     "llama-3.1-8b-instant"
     if DEV_MODE
