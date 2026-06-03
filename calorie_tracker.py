@@ -15,7 +15,7 @@ def save_calorie_goal(user_id, calorie_goal, protein_goal, carbs_goal, fats_goal
      # Saves the user's calorie and macro goals
      # For now, this inserts a new goal row each time
      # Later, you can improve this to update the latest goal only
-     try:
+    try:
         # Check if an identical entry already exists
         existing = supabase.table("calorie_goals")\
             .select("calorie_goal, protein_goal, carbs_goal, fats_goal")\
