@@ -12,10 +12,29 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # SAVE CALORIE GOALS
 
 def save_calorie_goal(user_id, calorie_goal, protein_goal, carbs_goal, fats_goal):
-    # Saves the user's calorie and macro goals
-    # For now, this inserts a new goal row each time
-    # Later, you can improve this to update the latest goal only
-    try:
+     # Saves the user's calorie and macro goals
+     # For now, this inserts a new goal row each time
+     # Later, you can improve this to update the latest goal only
+     try:
+        # Check if an identical entry already exists
+        existing = supabase.table("calorie_goals")\
+            .select("calorie_goal, protein_goal, carbs_goal, fats_goal")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)\
+            .limit(1)\
+            .execute()
+
+        if existing.data:
+            latest = existing.data[0]
+            if (
+                latest["calorie_goal"] == calorie_goal and
+                latest["protein_goal"] == protein_goal and
+                latest["carbs_goal"] == carbs_goal and
+                latest["fats_goal"] == fats_goal
+            ):
+                st.warning("⚠️ These goals are identical to your current settings. No changes made.")
+                return
+
         supabase.table("calorie_goals").insert({
             "user_id": user_id,
             "calorie_goal": calorie_goal,
@@ -23,6 +42,7 @@ def save_calorie_goal(user_id, calorie_goal, protein_goal, carbs_goal, fats_goal
             "carbs_goal": carbs_goal,
             "fats_goal": fats_goal
         }).execute()
+
     except Exception as e:
         st.error(f"Error saving calorie goal: {e}")
 
