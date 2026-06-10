@@ -33,6 +33,9 @@ def render():
         # show the weight tracker
         _render_progress_tracker_menu()
         st.divider()
+        # show the bidyfat analyzer
+        st.divider()
+        _render_bodyfat_analyzer()
         # show the convo history
         _render_conversation_history()
         st.divider()
@@ -176,6 +179,13 @@ def _render_profile():
         # send usee to the chatbot page
         st.session_state["page"] = "chat"
         # refresh the app so changes takes effect
+        st.rerun()
+
+# render the bodyfat analyzer for guest
+def _render_bodyfat_analyzer():
+    st.markdown("#### Body Fat Analyzer")
+    if st.button("🔬 Analyze Body Fat", use_container_width=True, key="bodyfat_btn"):
+        st.session_state["page"] = "bodyfat_analyzer"
         st.rerun()
 
 # render the weight tracker for logged in users
