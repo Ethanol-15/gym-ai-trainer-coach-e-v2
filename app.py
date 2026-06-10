@@ -10,6 +10,7 @@ import time
 import weight_tracker
 import strength_tracker
 import calorie_tracker
+import bodyfat_analyzer
 
 # page config
 st.set_page_config(
@@ -89,6 +90,9 @@ if current_page == "calorie_tracker":
         # stop the chatbot page from rendering underneath
         st.stop()
 
+if current_page == "bodyfat_analyzer":
+        bodyfat_analyzer.render_bodyfat_analyzer()
+        st.stop()
 
 # groq API key
 try:
@@ -99,7 +103,7 @@ except:
 client = Groq(api_key=GROQ_API_KEY)
 
 # MODEL SETTINGS
-DEV_MODE = False
+DEV_MODE = True
 MODEL = (
     "llama-3.1-8b-instant"
     if DEV_MODE
