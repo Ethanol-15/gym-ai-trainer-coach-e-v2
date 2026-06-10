@@ -2,7 +2,7 @@
 
 An AI-powered fitness coaching web application built using LLaMA 3.3, Retrieval Augmented Generation (RAG), Supabase, and Streamlit.
 
-Coach E combines conversational AI with real-world fitness tracking systems including calorie tracking, weight tracking, strength progression analytics, authentication, and persistent chat history.
+Coach E combines conversational AI with real-world fitness tracking systems including calorie tracking, weight tracking, strength progression analytics, body fat estimation, authentication, and persistent chat history.
 
 🔗 **Live Demo:** https://coach-e-gym.streamlit.app
 
@@ -38,10 +38,10 @@ Coach E combines conversational AI with real-world fitness tracking systems incl
 - Daily bodyweight logging
 - Progress line graph visualization
 - Weight analytics:
-  - highest weight
-  - lowest weight
-  - total weight change
-  - trend analysis
+  - Highest weight
+  - Lowest weight
+  - Total weight change
+  - Trend analysis
 
 ### 💪 Strength Tracker
 - Supports:
@@ -49,23 +49,26 @@ Coach E combines conversational AI with real-world fitness tracking systems incl
   - Calisthenics
   - Weighted calisthenics
 - Tracks:
-  - sets
-  - reps
-  - weight used
-  - bodyweight
+  - Sets, reps, weight used, bodyweight
 - Calculates estimated strength progression using the Epley formula
 - Exercise-specific progress graphs and analytics
 
 ### 🍽️ Calorie & Macro Tracker
 - User-defined calorie and macro goals
 - Daily nutrition logging
-- Tracks:
-  - calories
-  - protein
-  - carbs
-  - fats
+- Tracks calories, protein, carbs, and fats
 - Displays remaining macros and calories for the day
 - Nutrition analytics dashboard
+
+### 🔬 Body Fat Analyzer
+- AI-powered body fat estimation from a photo using Groq Vision (Llama 4 Scout)
+- Supports photo upload or live camera capture
+- Optional U.S. Navy Body Fat Formula using body measurements for improved accuracy
+- Metric and Imperial unit support (cm or ft/in)
+- Bias correction system accounting for lighting, camera angle, and muscle flex artifacts
+- Wide estimate ranges (±4–6%) to reflect real-world photo estimation uncertainty
+- Available to both guests and logged-in users — no account required
+- Privacy-friendly: photos are never stored, processed in memory only
 
 ### 📊 Analytics Dashboard
 - Interactive Plotly graphs
@@ -101,13 +104,15 @@ Conversation + tracker data saved to Supabase
 | Python | Core backend/application logic |
 | Streamlit | Frontend web framework |
 | Supabase | Cloud database + authentication |
-| LLaMA 3.3 70B | Large language model |
+| LLaMA 3.3 70B | Large language model (chat coach) |
+| Llama 4 Scout | Vision model (body fat analyzer) |
 | Groq API | Ultra-fast LLM inference |
 | RAG | Retrieval Augmented Generation |
 | FAISS | Vector similarity search |
 | SentenceTransformers | Embedding generation |
 | Plotly | Interactive analytics charts |
 | Pandas | Data analysis |
+| Pillow | Image handling and EXIF correction |
 | GitHub | Version control |
 | Streamlit Cloud | Deployment platform |
 
@@ -131,6 +136,24 @@ System Prompt + Memory + RAG Context
 Groq API (LLaMA 3.3)
     ↓
 AI Response
+```
+
+## Body Fat Analyzer Pipeline
+
+```text
+User uploads photo
+    ↓
+Optional: body measurements entered
+    ↓
+Navy Formula calculates math-based BF% estimate
+    ↓
+Image converted to base64 (memory only, never stored)
+    ↓
+Groq Vision (Llama 4 Scout) analyzes photo
+    ↓
+Bias corrections applied (lighting, angle, flex artifacts)
+    ↓
+BF% range + category + visual observations returned
 ```
 
 ---
@@ -169,6 +192,8 @@ gym-ai-trainer-coach-e-v2/
 ├── weight_tracker.py
 ├── strength_tracker.py
 ├── calorie_tracker.py
+├── bodyfat_analyzer.py
+├── bodyfat_utils.py
 ├── gym_data.json
 ├── requirements.txt
 ├── .gitignore
@@ -256,13 +281,14 @@ SUPABASE_KEY = "your_supabase_anon_key"
 # 🧪 Engineering Concepts Used
 
 - Retrieval Augmented Generation (RAG)
-- Vector embeddings
-- Similarity search
-- Prompt engineering
+- Vector embeddings and similarity search
+- Vision model integration (multimodal AI)
+- Prompt engineering with bias correction
 - Session state management
 - Database schema design
 - Authentication systems
 - Analytics pipelines
+- Unit conversion and formula-based estimation
 - Full-stack AI application architecture
 
 ---
@@ -276,6 +302,7 @@ SUPABASE_KEY = "your_supabase_anon_key"
 - [x] Calorie tracker
 - [x] Supabase migration
 - [x] Analytics dashboards
+- [x] Body fat analyzer (vision AI + Navy formula)
 - [ ] Exercise recommendation engine
 - [ ] AI-generated workout plans
 - [ ] Streaming AI responses
@@ -300,4 +327,4 @@ MIT License
 
 ---
 
-Built with LLaMA, RAG, Supabase, and an obsession with hyper
+Built with LLaMA, RAG, Supabase, and an obsession with hypertrophy.
