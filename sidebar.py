@@ -29,6 +29,15 @@ def render():
         # app title and short discription
         st.markdown("## Coach E")
         st.markdown("*Your AI-powered gym coach*")
+
+        # COACH E WEBSITE LINK INSERTED HERE
+        # This button appears at the top of the sidebar.
+        st.link_button(
+            "🌐 Visit Coach E Website",
+            "https://coach-e-coaching-website.vercel.app/",
+            use_container_width=True
+        )
+        
         st.divider()
         # show the weight tracker
         _render_progress_tracker_menu()
